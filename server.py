@@ -88,7 +88,7 @@ else:
 
 
 serialConnected = False #global flag for whether or not the serial port should be connected
-serialPort =0  # (init value is 3...junk) contains serial port object when in use...touching protected by serialLock below
+serialPort = 0  # (init value is 3...junk) contains serial port object when in use...touching protected by serialLock below
 serialLock = Lock() #serial permission lock (protects shared resource of serial port)
 print (serialLock)
 
@@ -146,15 +146,8 @@ Kd = 0.0
 Ki = 0.0
 direct = 0.0
 desired = 0.0
-alternate = 0.0 # global flag of whether or not we're alternating...
 '''
 
-
-#ALTERNATING DATA STRUCTURE:
-#   timer and state are used for storing/remembering the switching action
-#   period is how often to switch (in seconds)
-#   param is the user input that is switched (determined during initialization)
-alt_data = {'timer': time.time(), 'state':-1.0, 'period': 5, 'param': None} #data struture used to implement alternating behavior
 
 #Start up Flask server:
 app = Flask(__name__, template_folder = './',static_url_path='/static')
@@ -162,18 +155,7 @@ app.config['SECRET_KEY'] = 'secret!' #shhh don't tell anyone. Is a secret
 socketio = SocketIO(app, async_mode = async_mode)
 thread = None
 
-#csv variables:
-global csv_default
-global csv_recent
-global current
-global archive
-csv_st = time.time()
-#variable which determines whether a csv is being generated or not.
-csv_yn = False  #start out not writing csv files
-csvLock = Lock()
-
 keepRunning = True #set to True for default
-
 
 #global setup variables:
 #used during initialization of comms/building GUI
@@ -181,6 +163,8 @@ isSetup = False
 setupString = ""
 allGoodFromGUI = False
 
+def dataThread():
+    pass
 
 #Function run in parallel on infinite loop with 
 #serves as serial listener outside of separate loop
@@ -316,7 +300,7 @@ def serialThread():
                 try:
                     serialPort.flushInput()
                 except:
-                    print ("initi string reading issue")
+                    print ("initial string reading issue")
                 serialLock.release()
                 print("updating Parameters:")
                 for x in s: #reload gui and device
@@ -329,7 +313,6 @@ def serialThread():
             time.sleep(1)
             print(system_parameters)
             print ("Starting to read serial subthread")
-
             print ('Alternating state')
             print (alternate)
             print("expected length:")
@@ -401,19 +384,17 @@ def messageRead(buff,exp):
     if first == 0 and last == -1:
         return True
     else:
-        return False          
-
+        return False
 
 @app.route('/')
 def index():
     global thread
     print ("A user connected")
     if thread is None:
-        thread = Thread(target=serialThread)
+        thread = Thread(target=dataThread)
         thread.daemon = True
         thread.start()
     return render_template('pages/main.html') # NOTE: it's main
-
 
 # User has connected
 @socketio.on('connect')
@@ -428,8 +409,6 @@ def test_connect():
     #emit('serial list display', {'data': ports}) #emit socket with serial ports in it
     emit('serial list display', newb) #emit socket with serial ports in it
     #emit('my response', {'data': 'Connected'}) 
-
-
 
 # User has disconnected
 @socketio.on('disconnect')
@@ -483,45 +462,6 @@ def action(baud):
     global baudselection
     print ('baud changed to %s' %(baud))
     baudselection = baud
-
-@socketio.on('csv state')
-def csver(csv_val):
-    global csv_default
-    global csv_recent
-    global current
-    global archive
-    global csv_yn
-    global csvLock
-    global csv_st
-    if int(csv_val) == 0:
-        print('closing csv files')
-        csv_yn = 0
-        csvLock.acquire()
-        try:
-            current.close()
-            archive.close()
-        except NameError:
-            pass #did not exist yet...totes fine
-        csvLock.release()
-    else: #do other thing
-        print('Trying opening csv files up!')
-        csv_st = time.time()
-        #current = open('./csv_files/current.csv',"w",encoding='utf8',newline='')
-        #archive = open('./csv_files/'+str(int(time.time()))+'.csv',"w",encoding='utf8',newline='')
-        try:
-            current = open('./csv_files/current.csv',"w",**kwargs)
-            archive = open('./csv_files/'+str(int(time.time()))+'.csv',"w",**kwargs)
-            csv_default = csv.writer(archive)
-            csv_recent = csv.writer(current)
-            csvLock.acquire() 
-            csv_default.writerow(['Time']+params_and_values)
-            csv_recent.writerow(['Time']+params_and_values)
-
-            csvLock.release()
-            csv_yn = 1
-            print ('CSV File Open successful')
-        except:
-            print("Failed to open CSV Files")
                 
 @socketio.on('serial connect request')
 def connection(already_built):
@@ -547,7 +487,6 @@ def connection(already_built):
         print ('Connected to ' + str(serialselection) + ' at ' + str(baudselection) + ' BAUD.')
         emit('serial connected', broadcast=True) #tells page to indicate connection (in button)
         serialPort.flushInput()
-        #serialPort.flushOutput()
         serialLock.release()
         serialConnected = True #set global flag
     except:
@@ -567,7 +506,7 @@ def discon():
     emit('serial disconnected',broadcast=True)
     print ('Disconnected...good riddance' )
 
-@socketio.on("disconnected")
+@socketio.on('disconnected')
 def ending_it():
     print ("We're done, we're through, we're over.")
 
@@ -624,10 +563,6 @@ def action(content):
     data = content['data'] 
     # Emit Variables
     socketio.emit('autopilot_{}'.format(unique),data=(div,data))
-
-@socketio.on('lit')
-def action():
-    print("It is indeed very, very lit")
 
 
 if __name__ == '__main__':

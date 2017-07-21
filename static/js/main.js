@@ -74,7 +74,6 @@ $(document).on('pageinit', function() {
     };
 
     //Handle sockets with server:
-
     var socket = io('http://localhost:3000');
 
     //Server sending socket containing list of valid serial ports:
@@ -91,14 +90,13 @@ $(document).on('pageinit', function() {
 
     //Connect/Disconnect to Serial Port
     $('#connect').click(function(){
-        console.log("esta lit");
         hootenanny();
         if($(this).text() != 'Connected (Click to Disconnect)'){
+            console.log("Wanting to connect");
             socket.emit('serial connect request',{state: ALREADY_BUILT});
-            $('#csv').val(0).slider('refresh');
-            $('#alternator').val(0).slider('refresh');
             isActive = true;
         }else{
+            console.log("Wanting to disconnect");
             socket.emit('serial disconnect request');
         }
     });
@@ -155,7 +153,6 @@ $(document).on('pageinit', function() {
         sliders = new Array();
         plots = new Array();
         plot_handlers = new Array();
-        //-------
         // msg = msg+''; //convert to string...stupid I know.
         msg = "&C&S~Gonzo~commname~0~69~5&A~Gonzo~2&S~Joe~commname~0~69~5&S~Wei~commname~0~100~1&S~Jesus~commname~3~5~1&S~Wow~commname~0~3~4&T~Hehe~U1~1~5&T~Joee~F4~0~100&T~Everything~U1~0~10&T~Help~U1~0~255&T~Wowe~S4~2~5&"
         // msg = "&A~DesiredAngV~5&C&S~Direct~O~0~5.0~0.1&S~DesiredAngV~A~-1~1~0.1&T~AngleV~F4~0~2.5&T~BackEMF~F4~0~5&T~MCmd~F4~0~5&H~4&"
@@ -208,7 +205,7 @@ $(document).on('pageinit', function() {
                 containment: "#main_area",
                 snap: true
             });
-        } );
+        });
     };
 
     ///////////////////////////
